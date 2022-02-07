@@ -1,18 +1,39 @@
-chars = "ùéèêàâôîïçÉ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \n" #extracted from the string library : string.printable, with some minor changes.
+import secrets
+
+
+chars = "ùéèêàâôîïçÉ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \n" #extracted from the string library : string.printable, with some minor changes. You can add yours !
 max_shift = len(chars)
 
-def collatz_sequence(n, steps):
+
+def gen_key():
+    return secrets.token_hex(150)
+
+def random_between(min, max):
+    rand = secrets.randbelow(max+1)
+    while rand < min:
+        rand = secrets.randbelow(max+1)
+    return rand
+
+def gen_noise():
+    noise = ''
+    for i in range(random_between(10**2, 10**3)):
+        noise += secrets.choice(chars)
+    return noise
+
+def collatz_sequence(n):
     sequence = [n]
-    i = 1
-    while n != 1 and i < steps:
+    while n != 1:
         n = 3 * n + 1 if n & 1 else n // 2
         sequence.append(n)
-        i += 1
-
-    if len(sequence) < steps:
-        return ((steps // len(sequence)) + 1) * sequence    
-
+    
     return sequence
+
+def modified_collatz_sequence(key, size):
+    seq = collatz_sequence(key)
+    output = [x % max_shift for x in seq if not x & 1]
+    if len(output) < size:
+        output = (size // len(output) + 1) * output
+    return output[0:size]
 
 def encode(char, key):
     try:
@@ -39,7 +60,8 @@ def decode(char, key):
     return chars[result - 1]
 
 def encrypt_str(plaintext, key):
-    keys = collatz_sequence(key, len(plaintext))
+    keys = modified_collatz_sequence(key, len(plaintext) + 10**4)
+    plaintext = gen_noise() + 'BEGINREALMESSAGE' + plaintext
     ciphertext = ''
 
     for i in range(len(plaintext)):
@@ -48,19 +70,31 @@ def encrypt_str(plaintext, key):
     return ciphertext
 
 def decrypt_str(ciphertext, key):
-    keys = collatz_sequence(key, len(ciphertext))
+    keys = modified_collatz_sequence(key, len(ciphertext) + 10**4)
     plaintext = ''
 
     for i in range(len(ciphertext)):
         plaintext += decode(ciphertext[i], keys[i])
+    
+    try:
+        return plaintext.split('BEGINREALMESSAGE')[1]
+    except Exception:
+        return "Invalid input or key."
 
-    return plaintext
+message = "The cake is a lie."
+print(f"Message is : {message}")
+print()
 
+str_key = gen_key()
+key = int(str_key, 16)
+print("The key is : ")
+print(str_key)
+print()
 
-message = "The bird is purple."
-key = 2*210-91
 cipher = encrypt_str(message, key)
-print(cipher)
 deciphered = decrypt_str(cipher, key)
-print(deciphered)
-print(message == deciphered)
+
+print(f"Encrypted message is : {cipher}")
+print()
+print(f"Decrypted message is : {deciphered}")
+print(f"Match with original message ? {deciphered == message}")
